@@ -16,11 +16,13 @@ def main():
 
     RE_count_list, AE_count_list = edge_counter(txt_input_frame)
 
-    decoded_reader_message = pramble_finder(RE_count_list)
+    translated_reader_message = reader_pramble_finder(RE_count_list)
+
+    decoded_reader_message = reader_message_decoder(translated_reader_message)
 
     
     
-    print(RE_count_list)
+    print(translated_reader_message)
     print(AE_count_list)
 
 def edge_counter(txt_input_frame):
@@ -51,9 +53,9 @@ def edge_counter(txt_input_frame):
     return RE_count_list, AE_count_list
 
     # Finds the preables and returns the Tari
-def pramble_finder(count_list):
+def reader_pramble_finder(count_list):
 
-    decoded_message = []
+    reader_translated_message = []
     tari = 0
     pramble_check = count_list[:2]
 
@@ -64,15 +66,15 @@ def pramble_finder(count_list):
 
             tari = pramble_check[0]  
             print(tari)
-            decoded_message.append('Preamble')       
+            reader_translated_message.append('Preamble')       
             
        
-        decoded_message.append(message_decoder(val, tari))
+        reader_translated_message.append(message_decoder(val, tari))
 
         pramble_check.append(val)                   # Add the new value to the end of the list
         pramble_check = pramble_check[1:]           # Slice off the oldest value 
 
-    return decoded_message
+    return reader_translated_message
     
 
 
@@ -97,6 +99,25 @@ def message_decoder(val, tari):
 
     return decoded_val
 
+    # Take the translated reader message and decide the real physical message
+def reader_message_decoder(translated_reader_message):
+
+    # Split the full message into the individual parts
+    key = lambda sep: sep == 'Preamble'
+    message_list = [list(group) for is_key, group in itertools.groupby(translated_reader_message, key) if not is_key]
+    
+    trimmed_message_list = []
+
+    for message in message_list:
+        target_index = message.index('x')
+
+        trimmed_message_list.append(message[:target_index])
+
+    # Match the parts to the what they mean
+
+    
+
+    
 
 
 # Decode the input value to HI or LO on the thereshold value
