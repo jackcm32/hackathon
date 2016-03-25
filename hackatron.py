@@ -1,3 +1,7 @@
+# Wireless Networking RFID Challenge
+# Jack Mackintosh - 4537475
+# Danielle van der Werff - 4422171
+
 
 import json
 import pandas as pd
@@ -26,11 +30,11 @@ def main():
     # for i,v in enumerate(trimmed_tag_message):
     #     trimmed_reader_message.insert(2*i+1,v)
 
-    # works on one element at a tiem
-    for message in trimmed_reader_message:
-        command_decoder(message)
-
-    print(trimmed_reader_message)
+    # works on one element at a time
+    for i in range(len(trimmed_reader_message)):
+    	reader_type = reader_command_decoder(trimmed_reader_message[i])
+        print 'Reader message type:', reader_type
+        print 'Tag message type:', tag_command_decoder(reader_type, trimmed_tag_message[i])
 
 def edge_counter(txt_input_frame):
 
@@ -105,6 +109,8 @@ def tag_pramble_finder(count_list):
 				i+=1
 		i+=1
 	
+	# Look for preamble combination in the bitstream
+	# If found, replace sequence with 'Preamble'
 	i = 0
 	while i < len(temp):
 		if (i < len(temp)-5):
@@ -186,39 +192,88 @@ def message_trimmer(translated_reader_message):
     return trimmed_message_list
 
     # takes the bit stream and decides the command, works on one element at a tiem
-def command_decoder(trimmed_reader_message):
+def reader_command_decoder(trimmed_reader_message):
 
-    if(trimmed_reader_message[:2]==[0,0]):
-        print('QueryRep')
-    elif(trimmed_reader_message[:2]==[0,1]):
-        print('ACK')
-    elif(trimmed_reader_message[:4]==[1,0,0,0]):
-        print('Query')
-    elif(trimmed_reader_message[:4]==[1,0,0,1]):
-        print('QueryAdjust')
-    elif(trimmed_reader_message[:4]==[1,0,1,0]):
-        print('Select')
-    elif(trimmed_reader_message[:4]==[1,0,1,1]):
-        print('-')
-    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,0,0]):
-        print('NAK')
-    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,0,1]):
-        print('Req_RN')
-    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,1,0]):
-        print('Read')
-    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,1,1]):
-        print('Write')
-    else:
-        raise ValueError('Error, command not recognised. Error is string')
+	if(trimmed_reader_message[:2]==[0,0]):
+		reader_type = 'QueryRep'
+	elif(trimmed_reader_message[:2]==[0,1]):
+		reader_type = 'ACK'
+	elif(trimmed_reader_message[:4]==[1,0,0,0]):
+		reader_type = 'Query'
+	elif(trimmed_reader_message[:4]==[1,0,0,1]):
+		reader_type = 'QueryAdjust'
+	elif(trimmed_reader_message[:4]==[1,0,1,0]):
+		reader_type = 'Select'
+	elif(trimmed_reader_message[:4]==[1,0,1,1]):
+		reader_type = '-'
+	elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,0,0]):
+		reader_type = 'NAK'
+	elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,0,1]):
+		reader_type = 'Req_RN'
+	elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,1,0]):
+		reader_type = 'Read'
+	elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,1,1]):
+		reader_type = 'Write'
+	else:
+		raise ValueError('Error, command not recognised. Error is string')
+
+	return reader_type
+	
+	# takes the reader and tag bitstream and decides the command
+def tag_command_decoder(reader_type, trimmed_tag_message):
+
+	# Tag response depends on reader message and tag state.
+	# For full scalability of the script, the code below should be 
+	# extended significantly to be able to decode all possible tag type options,
+	# and the tag state should be included. This is left for future work.
+	if(reader_type == 'QueryRep'):
+		tag_type = 'To be implemented'
+		
+	elif(reader_type == 'ACK'):
+		
+		# This is only one of the 32 options for responses to ACK
+		if(trimmed_tag_message[:5] == [1,0,0,1,1]):
+			tag_type = 'Disallowed'
+		else:
+			tag_type = 'To be implemented'
+		
+	elif(reader_type == 'Query'):
+		tag_type = 'To be implemented'
+		
+	elif( reader_type == 'QueryAdjust'):
+		 tag_type = 'To be implemented'
+		 
+	elif(reader_type == 'Select'):
+		 tag_type = 'To be implemented'
+		 
+	elif(reader_type == '-'):
+		 tag_type = 'To be implemented'
+		 
+	elif(reader_type == 'NAK'):
+		tag_type = 'To be implemented'
+		
+	elif(reader_type == 'Req_RN'):
+	   	tag_type = 'Backscatter handle'
+	   	
+	elif(reader_type == 'Read'):
+	   	tag_type = 'To be implemented'
+	   	
+	elif(reader_type == 'Write'):
+		tag_type = 'To be implemented'
+		
+	else:
+		raise ValueError('Error, command not recognised. Error is string')
+
+	return tag_type	
 
 # Decode the input value to HI or LO on the thereshold value
 def threshold(input_val, threshold_val):
 
-    if(input_val>=threshold_val):
-        return 1
-    elif( input_val< threshold_val):
-        return 0 
+	if(input_val>=threshold_val):
+		return 1
+	elif( input_val< threshold_val):
+		return 0 
 
 
 if __name__ == "__main__":
-    main()
+	main()
