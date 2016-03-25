@@ -17,13 +17,20 @@ def main():
     RE_count_list, AE_count_list = edge_counter(txt_input_frame)
 
     translated_reader_message = reader_pramble_finder(RE_count_list)
+    translated_tag_message = tag_pramble_finder(AE_count_list)
 
-    decoded_reader_message = reader_message_decoder(translated_reader_message)
+    trimmed_reader_message = message_trimmer(translated_reader_message)
+    trimmed_tag_message = message_trimmer(translated_tag_message)    
+    
+    # combine into 1 list
+    # for i,v in enumerate(trimmed_tag_message):
+    #     trimmed_reader_message.insert(2*i+1,v)
 
-    
-    
-    print(translated_reader_message)
-    print(AE_count_list)
+    # works on one element at a tiem
+    for message in trimmed_reader_message:
+        command_decoder(message)
+
+    print(trimmed_reader_message)
 
 def edge_counter(txt_input_frame):
 
@@ -52,7 +59,7 @@ def edge_counter(txt_input_frame):
 
     return RE_count_list, AE_count_list
 
-    # Finds the preables and returns the Tari
+    # Finds the preables of the reader and returns the Tari
 def reader_pramble_finder(count_list):
 
     reader_translated_message = []
@@ -65,21 +72,77 @@ def reader_pramble_finder(count_list):
         if( (pramble_check[1] >= 2.5*pramble_check[0]) & (pramble_check[1] <= 3.0*pramble_check[0])): 
 
             tari = pramble_check[0]  
-            print(tari)
             reader_translated_message.append('Preamble')       
             
        
-        reader_translated_message.append(message_decoder(val, tari))
+        reader_translated_message.append(reader_message_decoder(val, tari))
 
         pramble_check.append(val)                   # Add the new value to the end of the list
         pramble_check = pramble_check[1:]           # Slice off the oldest value 
 
     return reader_translated_message
     
+    # Finds the preambles of the tag
+def tag_pramble_finder(count_list):
+
+	# Note: not sure if line below is a fair assumption
+	pw = min(count_list) 		# Pulse width 
+
+	tag_translated_message = []
+	temp = []
+	
+	# Make temp array with decoded bitstream
+	i = 0
+	while i < len(count_list):	
+	
+		value = tag_message_decoder(count_list[i],pw)
+		temp.append(value)		
+
+		# if current element is data-0, check if next element is part of it too
+		# if not, it is a 'v' (violation) 
+		if ((value == 0) & (i < len(count_list)-1)):
+			if (tag_message_decoder(count_list[i+1],pw) == 0): 	
+				i+=1
+		i+=1
+	
+	i = 0
+	while i < len(temp):
+		if (i < len(temp)-5):
+			if ([temp[i],temp[i+1],temp[i+2],temp[i+3],temp[i+4],temp[i+5]] == [1,0,1,0,'v',1]):
+				tag_translated_message.append('Preamble')
+				i += 5
+				continue
+				
+		tag_translated_message.append(temp[i])
+		i += 1 
+		
+	return tag_translated_message
+
+	# Takes the count_list segment and decides the relative message encoded
+def tag_message_decoder(val, pw):
+	
+	# Error is a bit arbitrary now, we may have to choose a better error margin
+	error = 0.1
+	
+	# if the value is approximately 2 times the pulse width it is taken as data-1
+	if ((val/pw <= 2 + error) & (val/pw >= 2 - error) ): 
+		decoded_val = 1
+	
+	# if the value is approximately equal to the pulse width it is taken as data-0 
+	elif ((val/pw <= 1 + error) & (val/pw >= 1 - error)):
+		decoded_val = 0
+		
+    # raise ValueError('Value not within desired range')
+	else:
+		decoded_val = 'v'
+			
+	return decoded_val
+
+	
 
 
     # Takes the count_list segment and decides the realtive message encoded 
-def message_decoder(val, tari):
+def reader_message_decoder(val, tari):
 
     # error of 10%
     error = tari*0.1               
@@ -94,13 +157,17 @@ def message_decoder(val, tari):
 
     else:
         # raise ValueError('Value not within desired range')
-        decoded_val = 'x'
+        decoded_val = 'v'
 
 
     return decoded_val
 
     # Take the translated reader message and decide the real physical message
-def reader_message_decoder(translated_reader_message):
+def message_trimmer(translated_reader_message):
+
+    # remove everything up to the first preabmle 
+    target_index = translated_reader_message.index('Preamble')
+    translated_reader_message = translated_reader_message[target_index:]
 
     # Split the full message into the individual parts
     key = lambda sep: sep == 'Preamble'
@@ -109,16 +176,40 @@ def reader_message_decoder(translated_reader_message):
     trimmed_message_list = []
 
     for message in message_list:
-        target_index = message.index('x')
-
+        
+        if 'v' in message:
+            target_index = message.index('v')
+        else:
+            target_index = np.size(message)
         trimmed_message_list.append(message[:target_index])
+            
+    return trimmed_message_list
 
-    # Match the parts to the what they mean
+    # takes the bit stream and decides the command, works on one element at a tiem
+def command_decoder(trimmed_reader_message):
 
-    
-
-    
-
+    if(trimmed_reader_message[:2]==[0,0]):
+        print('QueryRep')
+    elif(trimmed_reader_message[:2]==[0,1]):
+        print('ACK')
+    elif(trimmed_reader_message[:4]==[1,0,0,0]):
+        print('Query')
+    elif(trimmed_reader_message[:4]==[1,0,0,1]):
+        print('QueryAdjust')
+    elif(trimmed_reader_message[:4]==[1,0,1,0]):
+        print('Select')
+    elif(trimmed_reader_message[:4]==[1,0,1,1]):
+        print('-')
+    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,0,0]):
+        print('NAK')
+    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,0,1]):
+        print('Req_RN')
+    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,1,0]):
+        print('Read')
+    elif(trimmed_reader_message[:8]==[1,1,0,0,0,0,1,1]):
+        print('Write')
+    else:
+        raise ValueError('Error, command not recognised. Error is string')
 
 # Decode the input value to HI or LO on the thereshold value
 def threshold(input_val, threshold_val):
